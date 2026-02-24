@@ -6,6 +6,7 @@ from pathlib import Path
 import typer
 
 from oc_nutrition.export import export_weekly_markdown
+from oc_nutrition.image_analysis import ImageAnalysisError, analyze_food_image_online
 from oc_nutrition.models import MealItem, MealLogEntry
 from oc_nutrition.storage import (
     StorageError,
@@ -94,6 +95,63 @@ def log_meal(
         raise typer.BadParameter(str(exc)) from exc
 
     typer.echo(f"Appended entry to {destination}")
+
+
+@app.command("log-image")
+def log_image_meal(
+    image: Path = typer.Option(..., exists=True, file_okay=True, dir_okay=False, readable=True),
+    meal_type: str = typer.Option(..., help="One of breakfast/lunch/dinner/snack."),
+    notes: str | None = typer.Option(None),
+    confirm: bool = typer.Option(
+        False,
+        "--confirm/--no-confirm",
+        help="Set --confirm to append analyzed result after preview.",
+    ),
+    data_dir: Path | None = typer.Option(None, help="Override data directory."),
+) -> None:
+    """Analyze food image online, preview estimates, append only with explicit confirmation."""
+    try:
+        estimate = analyze_food_image_online(image)
+    except ImageAnalysisError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    typer.echo("Image analysis result")
+    typer.echo(f"Food: {estimate.food_name}")
+    typer.echo(f"Quantity: {estimate.quantity}")
+    typer.echo(f"Calories: {estimate.calories:.1f}")
+    typer.echo(f"Protein (g): {estimate.protein_g:.1f}")
+    typer.echo(f"Carbs (g): {estimate.carbs_g:.1f}")
+    typer.echo(f"Fat (g): {estimate.fat_g:.1f}")
+    typer.echo(f"Confidence: {estimate.confidence:.2f}")
+    typer.echo(f"Reasoning: {estimate.reasoning or '-'}")
+
+    if not confirm:
+        typer.echo("Not saved yet. Re-run with --confirm to append this entry.")
+        return
+
+    entry = MealLogEntry(
+        timestamp=_now_local(),
+        meal_type=meal_type,
+        items=[
+            MealItem(
+                name=estimate.food_name,
+                quantity=estimate.quantity,
+                calories=estimate.calories,
+                protein_g=estimate.protein_g,
+                carbs_g=estimate.carbs_g,
+                fat_g=estimate.fat_g,
+                source="estimate",
+                confidence=estimate.confidence,
+            )
+        ],
+        notes=notes,
+    )
+    try:
+        destination = append_log_entry(entry, resolve_data_dir(data_dir))
+    except (ValueError, StorageError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    typer.echo(f"Confirmed and appended entry to {destination}")
 
 
 @app.command("today")
