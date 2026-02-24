@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# Local nutrition data (keep examples)
+data/profile.json
+data/meal_log.ndjson
+data/food_aliases.json
+data/exports/*.md
+!data/exports/.gitkeep
