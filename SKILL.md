@@ -16,16 +16,19 @@ user-invocable: true
 
 ## Inputs it accepts
 - Quick logs: meal type, one or more items, portions, optional notes.
+- Photo logs: user-uploaded image path/input that may contain a meal.
 - Macro details: calories, protein, carbs, fat, optional fiber/sodium.
 - Goals updates: daily calorie/macro targets and preference notes.
 - Correction entries: append-only corrections when a previous log needs adjustment.
 
 ## Workflow
-1. Ask up to **2 clarifying questions** only if needed (missing meal type, quantities, or macros).
-2. Confirm the final interpreted meal details before writing.
-3. Append new log entry (never edit or delete old entries).
-4. Return immediate summary (today and/or week totals) when requested.
-5. Offer markdown export path for weekly report output.
+1. If input is an image, first classify whether it appears to be food.
+2. For food images, run online nutrition estimation to infer calories/macros from the photo.
+3. Ask up to **2 clarifying questions** only if needed (missing meal type, quantities, or macros).
+4. Confirm the final interpreted meal details before writing (explicit user confirmation required).
+5. Append new log entry only after confirmation (never edit or delete old entries).
+6. Return immediate summary (today and/or week totals) when requested.
+7. Offer markdown export path for weekly report output.
 
 ## Output formats
 - **Chat summary**: concise confirmation + macro totals.
@@ -35,6 +38,7 @@ user-invocable: true
 - Keep storage append-only; corrections are new entries.
 - Avoid collecting secrets or credentials.
 - Do not run downloads, shell commands, or network actions unless user explicitly confirms.
+- For image analysis, show estimated result first and require explicit confirmation before writing logs.
 - Keep data local by default.
 
 ## Example dialogues

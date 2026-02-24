@@ -21,8 +21,12 @@
   - `export-week` 명령으로 `data/exports/weekly_YYYY-MM-DD.md` 파일을 생성합니다.
   - 기간, 총합, 최근 식사 목록을 보고서 형태로 저장합니다.
 
+- **사진 기반 음식 분석 + 확인 후 기록**
+  - 음식 사진 입력 시 온라인 비전 모델로 음식 여부와 영양(칼로리/탄단지)을 추정할 수 있습니다.
+  - 분석 결과를 먼저 보여주고, 사용자가 확인(`--confirm`)한 경우에만 로그에 append 합니다.
+
 - **안전한 로컬 우선 설계**
-  - 기본적으로 로컬 파일만 사용하며, 파괴적 재작성 동작을 피하도록 설계되어 있습니다.
+  - 로그 저장은 로컬 append-only 파일을 사용하며, 파괴적 재작성 동작을 피하도록 설계되어 있습니다.
 
 ## 2) 프로젝트 구조와 파일 상세 설명
 
@@ -79,6 +83,7 @@
   - Typer 기반 CLI 명령 정의:
     - `init-profile`
     - `log`
+    - `log-image`
     - `today`
     - `week`
     - `export-week`
@@ -157,6 +162,8 @@ oc-nutrition log --meal-type lunch --item "chicken salad" --qty "1 bowl" --calor
 oc-nutrition today
 oc-nutrition week
 oc-nutrition export-week
+oc-nutrition log-image --image ./meal.jpg --meal-type dinner
+oc-nutrition log-image --image ./meal.jpg --meal-type dinner --confirm
 ```
 
 ### 명령별 설명
@@ -168,6 +175,11 @@ oc-nutrition export-week
 - `oc-nutrition log ...`
   - 식사 1건을 NDJSON 로그에 append합니다.
   - `meal-type`은 `breakfast/lunch/dinner/snack` 중 하나여야 합니다.
+
+- `oc-nutrition log-image --image ... --meal-type ... [--confirm]`
+  - 이미지가 음식인지 온라인 분석을 수행하고, 칼로리/탄단지 추정치를 미리 보여줍니다.
+  - `--confirm` 없이 실행하면 저장하지 않고 미리보기만 수행합니다.
+  - `--confirm`을 지정한 경우에만 `source=estimate`로 append 저장합니다.
 
 - `oc-nutrition today`
   - 당일 00:00~23:59:59 범위의 누적 매크로를 출력합니다.
