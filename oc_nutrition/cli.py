@@ -36,6 +36,25 @@ def _format_summary(label: str, summary) -> str:
     )
 
 
+def _format_entry_preview(entry: MealLogEntry) -> str:
+    item = entry.items[0]
+    return (
+        "Entry preview\n"
+        f"Timestamp: {entry.timestamp.isoformat()}\n"
+        f"Meal type: {entry.meal_type}\n"
+        f"Item: {item.name} ({item.quantity})\n"
+        f"Calories: {item.calories:.1f}\n"
+        f"Protein (g): {item.protein_g:.1f}\n"
+        f"Carbs (g): {item.carbs_g:.1f}\n"
+        f"Fat (g): {item.fat_g:.1f}\n"
+        f"Fiber (g): {item.fiber_g if item.fiber_g is not None else '-'}\n"
+        f"Sodium (mg): {item.sodium_mg if item.sodium_mg is not None else '-'}\n"
+        f"Source: {item.source or '-'}\n"
+        f"Confidence: {item.confidence if item.confidence is not None else '-'}\n"
+        f"Notes: {entry.notes or '-'}"
+    )
+
+
 @app.command("init-profile")
 def init_profile(
     data_dir: Path | None = typer.Option(None, help="Override data directory."),
@@ -67,9 +86,14 @@ def log_meal(
     notes: str | None = typer.Option(None),
     source: str | None = typer.Option(None, help="manual or estimate."),
     confidence: float | None = typer.Option(None, min=0, max=1),
+    confirm: bool = typer.Option(
+        False,
+        "--confirm/--no-confirm",
+        help="Set --confirm to append the previewed entry.",
+    ),
     data_dir: Path | None = typer.Option(None, help="Override data directory."),
 ) -> None:
-    """Append a meal log entry to NDJSON storage (append-only)."""
+    """Preview meal details, then append to NDJSON only with explicit confirmation."""
     now = _now_local()
     try:
         meal_item = MealItem(
@@ -90,11 +114,20 @@ def log_meal(
             items=[meal_item],
             notes=notes,
         )
-        destination = append_log_entry(entry, resolve_data_dir(data_dir))
     except (ValueError, StorageError) as exc:
         raise typer.BadParameter(str(exc)) from exc
 
-    typer.echo(f"Appended entry to {destination}")
+    typer.echo(_format_entry_preview(entry))
+    if not confirm:
+        typer.echo("Not saved yet. Re-run with --confirm to append this entry.")
+        return
+
+    try:
+        destination = append_log_entry(entry, resolve_data_dir(data_dir))
+    except StorageError as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    typer.echo(f"Confirmed and appended entry to {destination}")
 
 
 @app.command("log-image")
@@ -102,6 +135,11 @@ def log_image_meal(
     image: Path = typer.Option(..., exists=True, file_okay=True, dir_okay=False, readable=True),
     meal_type: str = typer.Option(..., help="One of breakfast/lunch/dinner/snack."),
     notes: str | None = typer.Option(None),
+    analyze: bool = typer.Option(
+        False,
+        "--analyze/--no-analyze",
+        help="Set --analyze to explicitly allow online image analysis.",
+    ),
     confirm: bool = typer.Option(
         False,
         "--confirm/--no-confirm",
@@ -110,6 +148,10 @@ def log_image_meal(
     data_dir: Path | None = typer.Option(None, help="Override data directory."),
 ) -> None:
     """Analyze food image online, preview estimates, append only with explicit confirmation."""
+    if not analyze:
+        typer.echo("Analysis not started. Re-run with --analyze to allow online analysis.")
+        return
+
     try:
         estimate = analyze_food_image_online(image)
     except ImageAnalysisError as exc:

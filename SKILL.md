@@ -1,7 +1,7 @@
 ---
 name: openclaw-nutrition-skill
-description: Chat-based meal logging, macro tracking, weekly nutrition reports, and meal planning/grocery list support with append-only local storage workflows.
-metadata: {"emoji":"🥗","category":"health","supports":["meal logging","macro estimation","weekly reports","meal planning","grocery lists"]}
+description: Chat-based meal logging, macro tracking, and weekly nutrition reports with append-only local storage workflows.
+metadata: {"emoji":"🥗","category":"health","supports":["meal logging","macro estimation","weekly reports"]}
 user-invocable: true
 ---
 
@@ -12,23 +12,22 @@ user-invocable: true
 - Estimate calories/macros from user-provided meals when exact data is unavailable.
 - Summarize nutrition totals for today and the last 7 days.
 - Export a weekly markdown report.
-- Assist with meal planning and grocery list suggestions from recent logs.
 
 ## Inputs it accepts
 - Quick logs: meal type, one or more items, portions, optional notes.
 - Photo logs: user-uploaded image path/input that may contain a meal.
 - Macro details: calories, protein, carbs, fat, optional fiber/sodium.
-- Goals updates: daily calorie/macro targets and preference notes.
-- Correction entries: append-only corrections when a previous log needs adjustment.
 
 ## Workflow
-1. If input is an image, first classify whether it appears to be food.
+1. If input is an image, request explicit approval for online analysis first.
 2. For food images, run online nutrition estimation to infer calories/macros from the photo.
 3. Ask up to **2 clarifying questions** only if needed (missing meal type, quantities, or macros).
 4. Confirm the final interpreted meal details before writing (explicit user confirmation required).
 5. Append new log entry only after confirmation (never edit or delete old entries).
 6. Return immediate summary (today and/or week totals) when requested.
 7. Offer markdown export path for weekly report output.
+
+> Note: Clarifying-question limits are enforced at the OpenClaw agent orchestration layer.
 
 ## Output formats
 - **Chat summary**: concise confirmation + macro totals.
@@ -46,18 +45,14 @@ user-invocable: true
    - User: "Log lunch: chicken salad, one bowl, about 450 calories."
    - Assistant: "Any macro estimates for protein/carbs/fat?"
    - User: "35 protein, 20 carbs, 18 fat."
-   - Assistant: "Confirmed. Appending lunch entry and updating today totals."
+   - Assistant: "확인했어요. 저장하려면 확정할까요?"
 
-2. **Correction entry**
-   - User: "I undercounted breakfast by 120 calories."
-   - Assistant: "I will append a correction note entry (no edits to old records). Confirm?"
-   - User: "Yes."
-   - Assistant: "Correction logged and totals refreshed."
+2. **Photo log**
+   - User: "이 사진으로 저녁 기록해줘."
+   - Assistant: "온라인 이미지 분석을 실행해도 될까요?"
+   - User: "응."
+   - Assistant: "분석 결과를 보여드릴게요. 이 내용으로 저장할까요?"
 
-3. **Goals update**
-   - User: "Set my daily target to 2100 calories, 140 protein, 230 carbs, 70 fat."
-   - Assistant: "Confirmed. I will update your profile targets and keep logs unchanged."
-
-4. **Weekly export**
+3. **Weekly export**
    - User: "Create my weekly report."
    - Assistant: "Done. Export generated at data/exports/weekly_YYYY-MM-DD.md with totals and recent meals."

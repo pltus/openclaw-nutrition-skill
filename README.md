@@ -159,11 +159,13 @@ pip install -e .[dev]
 ```bash
 oc-nutrition init-profile
 oc-nutrition log --meal-type lunch --item "chicken salad" --qty "1 bowl" --calories 450 --protein 35 --carbs 20 --fat 18
+oc-nutrition log --meal-type lunch --item "chicken salad" --qty "1 bowl" --calories 450 --protein 35 --carbs 20 --fat 18 --confirm
 oc-nutrition today
 oc-nutrition week
 oc-nutrition export-week
 oc-nutrition log-image --image ./meal.jpg --meal-type dinner
-oc-nutrition log-image --image ./meal.jpg --meal-type dinner --confirm
+oc-nutrition log-image --image ./meal.jpg --meal-type dinner --analyze
+oc-nutrition log-image --image ./meal.jpg --meal-type dinner --analyze --confirm
 ```
 
 ### 명령별 설명
@@ -172,14 +174,15 @@ oc-nutrition log-image --image ./meal.jpg --meal-type dinner --confirm
   - `data/profile.example.json`을 검증한 뒤 `data/profile.json`을 생성합니다.
   - 기존 `profile.json`이 있으면 덮어쓰지 않고 오류를 반환합니다.
 
-- `oc-nutrition log ...`
-  - 식사 1건을 NDJSON 로그에 append합니다.
+- `oc-nutrition log ... [--confirm]`
+  - 식사 1건을 먼저 preview 출력합니다.
+  - `--confirm`을 지정하면 NDJSON 로그에 append합니다.
   - `meal-type`은 `breakfast/lunch/dinner/snack` 중 하나여야 합니다.
 
-- `oc-nutrition log-image --image ... --meal-type ... [--confirm]`
-  - 이미지가 음식인지 온라인 분석을 수행하고, 칼로리/탄단지 추정치를 미리 보여줍니다.
-  - `--confirm` 없이 실행하면 저장하지 않고 미리보기만 수행합니다.
-  - `--confirm`을 지정한 경우에만 `source=estimate`로 append 저장합니다.
+- `oc-nutrition log-image --image ... --meal-type ... [--analyze] [--confirm]`
+  - `--analyze`가 있어야 온라인 분석을 수행합니다.
+  - 분석 결과를 먼저 보여주며, `--confirm` 없이는 저장하지 않습니다.
+  - `--analyze --confirm`을 함께 지정한 경우에만 `source=estimate`로 append 저장합니다.
 
 - `oc-nutrition today`
   - 당일 00:00~23:59:59 범위의 누적 매크로를 출력합니다.
