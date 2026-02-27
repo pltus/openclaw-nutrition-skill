@@ -20,7 +20,7 @@ user-invocable: true
 
 ## Workflow
 1. If input is an image, request explicit approval for online analysis first.
-2. For food images, run online nutrition estimation to infer calories/macros from the photo.
+2. For food images, use the **connected multimodal model** to estimate calories/macros from the photo (do not execute local Python code, scripts, or CLI commands).
 3. Ask up to **2 clarifying questions** only if needed (missing meal type, quantities, or macros).
 4. Confirm the final interpreted meal details before writing (explicit user confirmation required).
 5. Append new log entry only after confirmation (never edit or delete old entries).
@@ -37,8 +37,14 @@ user-invocable: true
 - Keep storage append-only; corrections are new entries.
 - Avoid collecting secrets or credentials.
 - Do not run downloads, shell commands, or network actions unless user explicitly confirms.
-- For image analysis, show estimated result first and require explicit confirmation before writing logs.
+- For image analysis, call the connected model directly for estimation and show the result first; require explicit confirmation before writing logs.
 - Keep data local by default.
+
+## OpenClaw execution policy
+- Follow OpenClaw skill interaction style (chat-first, confirmation-first).
+- Prefer the connected model/tooling route for inference and reasoning.
+- Do **not** ask the user to run Python files or invoke local CLI commands as part of normal skill execution.
+- Treat Python modules in this repository as reference implementation details, not the primary runtime path in OpenClaw chats.
 
 ## Example dialogues
 1. **Quick log**
