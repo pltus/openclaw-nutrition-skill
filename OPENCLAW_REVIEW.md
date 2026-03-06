@@ -1,103 +1,93 @@
-# OpenClaw Nutrition Skill 코드 전체 리뷰
+# OpenClaw Nutrition Skill 최신 정합성 리뷰 (2026-03)
 
-기준: `SKILL.md`, `references/logging_rules.md`, `references/privacy_security.md`의 요구사항 대비 현재 구현(`oc_nutrition/*`) 정합성 점검.
+기준 문서:
+- `SKILL.md`
+- `README.md`
+- `references/logging_rules.md`
+- `references/privacy_security.md`
+- `references/data_model.md`
 
-## 결론 요약
-- **핵심 저장/집계/리포트 기능은 대체로 요구사항에 부합**합니다.
-- 다만 **채팅형 스킬 워크플로 요구사항(질문 수 제한, 기록 전 확인, 목표 업데이트/정정 UX)**은 CLI 구현과 완전히 1:1 매핑되어 있지 않습니다.
-- 특히 “네트워크 액션은 명시적 확인 후” 규칙은 현재 `log-image` 실행 시점에 온라인 분석을 즉시 수행하므로, OpenClaw 에이전트 통합 시 추가 가드가 필요합니다.
-
----
-
-## 1) 요구사항 충족 항목 (Pass)
-
-### 1-1. Append-only 저장 규칙
-- `append_log_entry()`는 NDJSON 파일에 라인 append만 수행하고 기존 라인을 수정하지 않습니다.
-- `read_log_entries()`는 파일을 읽어 검증만 수행합니다.
-
-판정: **충족**
-
-### 1-2. 타임존 포함 타임스탬프 검증
-- `MealLogEntry`의 `timestamp` validator가 timezone offset 필수 조건을 강제합니다.
-
-판정: **충족**
-
-### 1-3. 이미지 분석 후 저장 전 확인
-- `log-image` 명령은 먼저 분석 결과를 출력하고, `--confirm` 옵션이 있을 때만 append 저장합니다.
-
-판정: **부분 충족** (저장 전 확인은 충족, 하지만 네트워크 호출 전 확인은 별도 필요)
-
-### 1-4. 주간 리포트 경로/형식
-- `export_weekly_markdown()`은 `data/exports/weekly_YYYY-MM-DD.md` 형식으로 출력합니다.
-
-판정: **충족**
+## 한줄 결론
+- 현재 저장소는 **문서 중심 스킬 저장소**라는 점에서 최신 OpenClaw의 스킬 운영 방식과 잘 맞습니다.
+- 다만 문서 간 정책 문구가 일부 엇갈려, 실제 에이전트 적용 시 혼선이 생길 수 있습니다.
 
 ---
 
-## 2) 요구사항 대비 갭/리스크 (Action Needed)
+## 1) 잘 맞는 점 (Pass)
 
-### 2-1. `SKILL.md`의 입력 범위 대비 CLI 기능 공백
-`SKILL.md`는 아래 입력을 지원한다고 명시합니다.
-- goals updates
-- correction entries
-- meal planning / grocery list
+1. **문서 중심 구조**
+   - `README.md`에서 실행용 CLI가 아닌 스킬 명세 저장소임을 명시하고 있습니다.
+   - 최신 OpenClaw의 chat-first 스킬 배포/운영 방식과 일치합니다.
 
-하지만 현재 CLI 커맨드는 `init-profile/log/log-image/today/week/export-week`만 제공됩니다.
+2. **확인 후 저장(confirmation-first) 원칙**
+   - `SKILL.md` 워크플로에서 저장 전 사용자 확인을 명시합니다.
+   - append-only 규칙과 함께 데이터 무결성 측면에서 적절합니다.
 
-영향:
-- 스킬 설명과 실제 실행 표면(API/CLI) 간 기대 불일치
-- OpenClaw에서 “목표 업데이트/장보기 제안” 요청 시 일관된 처리 경로 부족
+3. **append-only 원칙**
+   - `references/logging_rules.md`에서 기존 라인 수정 금지 및 정정은 새 엔트리 추가로 정의되어 있습니다.
 
-권고:
-1) 기능을 실제로 추가하거나,
-2) `SKILL.md` 설명 범위를 현재 제공 기능에 맞게 축소
-
-### 2-2. 기록 전 명시적 확인(일반 log 경로) 미흡
-`SKILL.md` 워크플로는 “최종 해석 결과 확인 후 쓰기”를 요구하지만, `log` 명령은 즉시 append합니다.
-
-영향:
-- 채팅형 오케스트레이션 없이 CLI 직접 사용 시, 확인 단계가 강제되지 않음
-
-권고:
-- `log`에도 `--confirm` 옵션을 두고 미확인 상태에서는 preview만 출력
-- 혹은 OpenClaw adapter 레이어에서 반드시 2단계(confirm) 플로우 강제
-
-### 2-3. 네트워크 호출 전 명시적 확인 부재 (`log-image`)
-안전 규칙에는 “네트워크 액션은 명시적 확인 후”가 포함되어 있으나, 현재 `log-image`는 실행 즉시 `analyze_food_image_online()` 호출을 수행합니다.
-
-영향:
-- 정책 해석에 따라 비준수로 볼 수 있음
-
-권고:
-- `--analyze` 같은 별도 명시 플래그를 요구하거나,
-- OpenClaw 상위 레이어에서 “온라인 분석 실행해도 되는지” 1차 확인 후 명령 호출
-
-### 2-4. “최대 2개 확인 질문” 규칙의 실행 계층 불명확
-해당 규칙은 `SKILL.md`/reference 문서에 있으나, 코드에는 질문 카운트/제어 로직이 없습니다.
-
-영향:
-- 현재 구조상 이 규칙은 모델 프롬프트/에이전트 오케스트레이션 레이어 의존
-
-권고:
-- 규칙이 코드 레벨 보장 대상이 아니면 문서에 “에이전트 레이어 책임”을 명시
-- 코드 보장을 원하면 대화 상태/질문 횟수 상태 저장 로직 추가
+4. **민감정보/보안 가이드 포함**
+   - `references/privacy_security.md`에서 비밀정보 저장 금지, 외부 액션의 명시적 확인 필요를 명시합니다.
 
 ---
 
-## 3) 우선순위 제안
+## 2) 오류/불일치 (Fix Needed)
 
-### P1 (반드시 권장)
-1. `SKILL.md` 기능 범위와 실제 기능을 일치시키기(확장 또는 문구 축소)
-2. 네트워크 호출/쓰기 호출의 confirm 게이트를 정책과 동일하게 정의하기
+1. **리뷰 문서 자체가 현재 저장소 상태와 불일치 (중요)**
+   - 기존 리뷰가 `oc_nutrition/*`, CLI 명령(`log-image`, `export-week`) 등 **현재 저장소에 없는 구현**을 전제로 작성되어 있습니다.
+   - 이 문서는 현행 기준에서 오해를 만들 수 있어 교체/정정이 필요합니다.
+
+2. **확인(Confirm) 기준 문구 불일치**
+   - `SKILL.md`: 저장 전에는 항상 explicit confirmation 필요.
+   - `references/logging_rules.md` 5번: 매크로 추정이 불확실할 때 확인.
+   - 결과적으로 “항상 확인”인지 “조건부 확인”인지 해석 충돌이 있습니다.
+
+3. **네트워크 정책 문구의 맥락 부족**
+   - `SKILL.md`는 이미지 입력 시 연결된 멀티모달 모델(온라인 분석) 사용을 안내합니다.
+   - `references/privacy_security.md`는 “로깅/요약에 네트워크 불필요”라고 표현합니다.
+   - 예외(이미지 분석)를 문서에 명시적으로 연결하지 않으면 정책 충돌처럼 보일 수 있습니다.
+
+---
+
+## 3) 개선 제안 (우선순위)
+
+### P1 (즉시 권장)
+1. **정책 우선순위 단일화**
+   - “저장 전 확인은 항상 필수”로 통일하거나,
+   - “조건부 확인”으로 바꿀 경우 조건을 `SKILL.md`와 `references/*`에 동일하게 반영.
+
+2. **네트워크 예외 규칙 명문화**
+   - `privacy_security.md`에 “이미지 분석은 사용자 사전 동의 시에만 예외적으로 네트워크 사용”을 명시.
+
+3. **리뷰 문서 최신화 유지**
+   - 구현 코드가 없는 저장소라는 현재 상태를 기준으로 리뷰를 유지하고,
+   - 과거 CLI 기반 점검 항목은 별도 아카이브로 분리.
 
 ### P2
-3. `log` 명령 preview-confirm 2단계 도입
-4. correction/goals 업데이트용 명시 커맨드 추가
+4. **운영 체크리스트 추가**
+   - OpenClaw 에이전트 적용 시 체크할 최소 항목(질문 2개 제한, 저장 전 확인, append-only, 동의 후 네트워크)을 한 페이지 체크리스트로 추가.
 
-### P3
-5. meal planning/grocery list 보조 기능(최근 로그 기반 추천) 구현 또는 범위 조정
+5. **입력/출력 계약(Contract) 명확화**
+   - `SKILL.md`의 입력 예시와 `references/data_model.md` 필드를 1:1로 매핑한 표를 추가해 구현체 간 해석 차이를 줄임.
 
 ---
 
-## 4) 이번 수정 사항
-- 이전 변경(스킬 문구 정합성만 검사하는 테스트 파일)은 사용자 요청 범위와 맞지 않아 제거했습니다.
+## 4) 권장 수정안 (문서 레벨)
+
+- `references/logging_rules.md` 5번을 아래처럼 조정:
+  - 기존: “macro estimate uncertain 시 confirm”
+  - 권장: “**모든 기록 append 전 사용자 확인 필수**. 불확실 추정이 포함되면 그 사실을 함께 고지.”
+
+- `references/privacy_security.md`에 예외 문구 추가:
+  - “기본적으로 로컬 처리. 단, 이미지 기반 영양 추정은 사용자의 명시적 사전 동의가 있을 때에만 연결 모델/네트워크 사용 가능.”
+
+---
+
+## 5) 최종 판정
+- **최신 OpenClaw 기준 적합도: 양호(Good) + 문서 정합성 보완 필요**
+- 치명적 보안 결함보다는 **정책 문구 일관성**이 주요 개선 포인트입니다.
+
+
+## 6) 반영 상태 (이번 커밋)
+- 정책 정합성 점검을 코드로 강제하기 위해 `scripts/validate_skill_policies.py`를 추가했습니다.
+- 이 스크립트는 confirmation-first 및 이미지 분석 사전 동의 규칙이 핵심 문서에 동시에 존재하는지 검사합니다.
